@@ -94,7 +94,7 @@ Recursively build a module's dependencies, including:
 * Shared libraries (e.g., `extern_lib` targets or precompiled modules)
 * `extraDepTargets` of its library
 -/
-def Module.recBuildDeps (mod : Module) : FetchM (BuildJob (SearchPath × Array FilePath)) := do
+def Module.recBuildDeps (mod : Module) : FetchM (BuildJob (SearchPath × Array FilePath)) := ensureJob do
   let extraDepJob ← mod.lib.extraDep.fetch
 
   /-
@@ -102,18 +102,17 @@ def Module.recBuildDeps (mod : Module) : FetchM (BuildJob (SearchPath × Array F
   precompiled imports so that errors in the import block of transitive imports
   will not kill this job before the direct imports are built.
   -/
-  let directImports ← try mod.imports.fetch
-    catch errPos => return Job.error (← takeLogFrom errPos)
+  let directImports ← mod.imports.fetch
   let importJob ← BuildJob.mixArray <| ← directImports.mapM fun imp => do
     if imp.name = mod.name then
       logError s!"{mod.leanFile}: module imports itself"
     imp.olean.fetch
-  let precompileImports ← try mod.precompileImports.fetch
-    catch errPos => return Job.error (← takeLogFrom errPos)
+  let precompileImports ← if mod.shouldPrecompile then
+    mod.transImports.fetch else mod.precompileImports.fetch
   let modLibJobs ← precompileImports.mapM (·.dynlib.fetch)
-  let pkgs := precompileImports.foldl (·.insert ·.pkg)
-    OrdPackageSet.empty |>.insert mod.pkg |>.toArray
-  let (externJobs, libDirs) ← recBuildExternDynlibs pkgs
+  let pkgs := precompileImports.foldl (·.insert ·.pkg) OrdPackageSet.empty
+  let pkgs := if mod.shouldPrecompile then pkgs.insert mod.pkg else pkgs
+  let (externJobs, libDirs) ← recBuildExternDynlibs pkgs.toArray
   let externDynlibsJob ← BuildJob.collectArray externJobs
   let modDynlibsJob ← BuildJob.collectArray modLibJobs
 
