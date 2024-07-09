@@ -1,3 +1,6 @@
+set_option autoImplicit false -- For compatibility with downstream projects, so we can retest after Mathlib.
+set_option relaxedAutoImplicit false
+
 open List
 
 variable {α : Type _}
@@ -120,6 +123,7 @@ variable (p : β → Option γ) in
 
 #check_simp replicate 0 x ~> []
 #check_simp replicate 1 x ~> [x]
+#check_simp replicate 5 x ~> [x, x, x, x, x]
 
 -- `∈` and `contains
 
@@ -268,7 +272,7 @@ variable {p : α → Bool} (w : ¬ p x) (h : 0 < n) in
 -- findSome?
 
 #check_simp (replicate (n+1) x).findSome? (fun x => some x) ~> some x
-#check_simp (replicate (n+1) x).findSome? (fun _ => none) ~> none
+#check_simp (replicate (n+1) x).findSome? (fun _ => (none : Option β)) ~> none
 
 variable {f : α → Option β} (w : (f x).isSome) in
 #check_tactic (replicate (n+1) x).findSome? f ~> f x by simp [w]
@@ -278,7 +282,7 @@ variable {f : α → Option β} (w : (f x).isNone) in
 variable (h : 0 < n) in
 #check_tactic (replicate n x).findSome? (fun x => some x) ~> some x by simp [h]
 variable (h : 0 < n) in
-#check_tactic (replicate n x).findSome? (fun _ => none) ~> none by simp [h]
+#check_tactic (replicate n x).findSome? (fun _ => (none : Option β)) ~> none by simp [h]
 
 variable {f : α → Option β} (w : (f x).isSome) (h : 0 < n) in
 #check_tactic (replicate n x).findSome? f ~> f x by simp [w, h]
@@ -316,6 +320,7 @@ variable (h : n ≤ m) in
 
 -- minimum?
 
+-- Note this relies on the fact that we do not have `replicate_succ` as a `@[simp]` lemma
 #check_simp (replicate (n+1) 7).minimum? ~> some 7
 
 variable (h : 0 < n) in
@@ -323,6 +328,7 @@ variable (h : 0 < n) in
 
 -- maximum?
 
+-- Note this relies on the fact that we do not have `replicate_succ` as a `@[simp]` lemma
 #check_simp (replicate (n+1) 7).maximum? ~> some 7
 
 variable (h : 0 < n) in
